@@ -1,0 +1,43 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Coach {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  password     String
+  name         String
+  clients      Client[]
+  workoutPlans WorkoutPlan[]    // ← add this line
+  createdAt    DateTime       @default(now())
+}
+
+model Client {
+  id           Int           @id @default(autoincrement())
+  coach        Coach         @relation(fields: [coachId], references: [id])
+  coachId      Int
+  name         String
+  email        String?
+  phone        String
+  createdAt    DateTime      @default(now())
+  workoutPlans WorkoutPlan[]
+}
+
+model WorkoutPlan {
+  id        Int      @id @default(autoincrement())
+  coach     Coach    @relation(fields: [coachId], references: [id])
+  coachId   Int
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  Int
+  day       DateTime
+  planName  String
+  exercises Json
+  createdAt DateTime @default(now())
+}
+
+
