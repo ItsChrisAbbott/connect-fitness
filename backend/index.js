@@ -8,6 +8,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { PrismaClient } = require('@prisma/client');
 
+// <<< NEW >>>  — import the AI Workout router
+const aiWorkout = require('./routes/aiWorkout');
+
 const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -16,6 +19,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // --- Middleware ---
 app.use(cors());
 app.use(bodyParser.json());
+
+// --- Mount AI routes (must come before auth middleware that might block them if public) ---
+app.use('/api/ai/workouts', aiWorkout);
 
 // --- Auth Middleware ---
 function authenticate(req, res, next) {
