@@ -7,14 +7,18 @@ generator client {
   provider = "prisma-client-js"
 }
 
+//////////////////////
+//  Core User Models
+//////////////////////
+
 model Coach {
   id           Int           @id @default(autoincrement())
   email        String        @unique
   password     String
   name         String
   clients      Client[]
-  workoutPlans WorkoutPlan[]    // ← add this line
-  createdAt    DateTime       @default(now())
+  workoutPlans WorkoutPlan[]
+  createdAt    DateTime      @default(now())
 }
 
 model Client {
@@ -28,6 +32,10 @@ model Client {
   workoutPlans WorkoutPlan[]
 }
 
+//////////////////////
+//  Workout & Plan
+//////////////////////
+
 model WorkoutPlan {
   id        Int      @id @default(autoincrement())
   coach     Coach    @relation(fields: [coachId], references: [id])
@@ -36,8 +44,19 @@ model WorkoutPlan {
   clientId  Int
   day       DateTime
   planName  String
-  exercises Json
-  createdAt DateTime @default(now())
+  exercises Json      // array of { exerciseName, sets, reps, rest, notes }
+  createdAt DateTime  @default(now())
 }
 
+//////////////////////
+//  Exercise Library
+//////////////////////
+
+model Exercise {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  videoUrl    String?
+  createdAt   DateTime @default(now())
+}
 
