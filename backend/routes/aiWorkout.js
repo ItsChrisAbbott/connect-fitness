@@ -1,9 +1,9 @@
-// backend/routes/aiWorkout.js  (CommonJS, JSON5-tolerant)
+// backend/routes/aiWorkout.js  (CommonJS)
 
 const express = require('express');
 const { openai } = require('../ai/openai');
 const { PrismaClient } = require('@prisma/client');
-const JSON5 = require('json5');               // ← new
+const JSON5 = require('json5');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -15,6 +15,7 @@ const prisma = new PrismaClient();
 router.post('/generate', async (req, res) => {
   const { goal, equipment, daysPerWeek, clientId, coachId } = req.body;
 
+  // Basic validation
   if (!goal || !equipment || !daysPerWeek || !clientId || !coachId) {
     return res.status(400).json({ error: 'missing fields' });
   }
@@ -24,9 +25,8 @@ router.post('/generate', async (req, res) => {
     const prompt = `
 You are an elite strength coach.
 Create a ${daysPerWeek}-day workout program for a client whose goal is "${goal}".
-Equipment available: ${equipment}.
-⚠️ Return ONLY valid JSON5 (so ranges can be 8-10, 10 per leg, etc.).
-Do NOT wrap in markdown fences.
+Equipment: ${equipment}.
+Return ONLY valid JSON5 — no markdown fences.
 
 {
   "days": [
@@ -40,31 +40,36 @@ Do NOT wrap in markdown fences.
 }`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',   // fallback to gpt-4o if unavailable
+      model: 'gpt-4o-mini',         // fallback to 'gpt-4o' if needed
       temperature: 0.3,
       messages: [{ role: 'user', content: prompt }],
     });
 
     // ---------- Safe JSON5 parsing ----------
-    const raw = completion.choices[0].message.content.trim();
+    const raw      = completion.choices[0].message.content.trim();
     const jsonSlice = raw.substring(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+
+    // Replace curly quotes with straight quotes
+    const cleaned = jsonSlice
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'");
 
     let plan;
     try {
-      plan = JSON5.parse(jsonSlice);          // tolerate 8-10, etc.
+      plan = JSON5.parse(cleaned);
     } catch (e) {
       console.error('JSON5 parse error. GPT output:\n', raw);
       return res.status(500).json({ error: 'Bad JSON from GPT' });
     }
 
-    // ---------- Persist ----------
+    // ---------- Persist each day ----------
     const savedPlans = await Promise.all(
       plan.days.map((d, idx) =>
         prisma.workoutPlan.create({
           data: {
             coachId,
             clientId,
-            day: new Date(Date.now() + idx * 86_400_000),
+            day: new Date(Date.now() + idx * 86_400_000), // idx days ahead
             planName: d.title,
             exercises: d.exercises,
           },
